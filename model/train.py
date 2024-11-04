@@ -1,4 +1,5 @@
 import pathlib
+import sys
 import time
 import settings.global_variables as gv
 import torch.nn as nn
@@ -31,7 +32,7 @@ def train():
 
     print("Creating dataset...")
     dataset_ = DTMFDataset(3e3)
-    dataloader = DataLoader(dataset_, batch_size=16, shuffle=True, collate_fn=collate_fn)
+    dataloader = DataLoader(dataset_, batch_size=1, shuffle=True, collate_fn=collate_fn)
 
     num_epochs = 10000
 
@@ -39,8 +40,9 @@ def train():
         print(f'Starting epoch {epoch}')
         total_loss = 0.0
         for data, labels in dataloader:
-            data = data.unsqueeze(1)  # Add channel dimension
-            labels = labels.long()  # Ensure labels are LongTensor
+            # data size [batch_size, len]
+            data = data.unsqueeze(1)
+            # data size [batch_size, channels, len]
             optimizer.zero_grad()
 
             outputs = model(data)
@@ -58,6 +60,7 @@ def train():
             loss.backward()
             optimizer.step()
 
+            print(loss.item())
             total_loss += loss.item()
             scheduler.step(loss.item())
 

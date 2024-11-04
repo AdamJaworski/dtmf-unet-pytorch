@@ -1,3 +1,5 @@
+import sys
+
 from settings.common_options import common_args
 from settings import global_variables
 from model.train import train
@@ -24,7 +26,14 @@ class_index_to_digit = {
 def main():
     set_device()
     global_variables.paths = ModelPaths()
-    test() if common_args.test else train()
+    try:
+        test() if common_args.test else train()
+    except KeyboardInterrupt:
+        print("Stopping..")
+    except Exception as e:
+        print(str(e))
+    finally:
+        sys.exit()
 
 def set_device():
     """

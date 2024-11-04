@@ -1,3 +1,6 @@
+import math
+import sys
+
 import numpy as np
 import numpy.random as rand
 import torch
@@ -25,15 +28,19 @@ class DTMFDataset(Dataset):
     def __init__(self, datasize):
         self.data_size = int(datasize)
         self.data = []
+        frame_size = 275  # Samples per label
 
         silence_break = np.zeros(int(fs * 40 / 1000), dtype=np.float32)
-        silence_label = np.full(len(silence_break), -1, dtype=np.int64)
         for i in range(self.data_size):
             duration_of_sound = rand.randint(3, 6)  # Number of digits
             sound = []
             labels = []
+            digits = []  # Store digits used
+            signal_lengths = []  # Store signal lengths
+            silence_lengths = []  # Store silence lengths
             for part in range(duration_of_sound):
                 digit = rand.randint(0, 11)  # >11 is noise
+                digits.append(digit)
                 duration = rand.randint(100, 300)  # ms
                 snr = rand.randint(1, 15)
                 volume = rand.uniform(0.5, 1.0)
@@ -53,24 +60,54 @@ class DTMFDataset(Dataset):
                 signal = add_awgn_noise(signal, snr)
                 signal = np.clip(signal, -1.0, 1.0)
 
-                # Create label array for the signal
-                signal_length = len(signal)
-                if digit <= 11:
-                    label_array = np.full(signal_length, digit, dtype=np.int64)
-                else:
-                    label_array = np.full(signal_length, -1, dtype=np.int64)
-
-                # Append signal and labels
+                # Append signal and its length
                 sound.append(signal)
-                labels.append(label_array)
+                signal_lengths.append(len(signal))
 
-                # Append silence break and silence label
+                # Append silence break and its length
                 sound.append(silence_break)
-                labels.append(silence_label)
+                silence_lengths.append(len(silence_break))
 
+            # Concatenate all sound segments
             full_signal = np.concatenate(sound).astype(np.float32)
-            full_labels = np.concatenate(labels).astype(np.int64)
-            self.data.append((torch.from_numpy(full_signal).to(gv.device), torch.from_numpy(full_labels).to(gv.device)))
+
+            # Add 1 second of silence at the end
+            end_silence_duration = fs  # 1 second of silence
+            end_silence = np.zeros(end_silence_duration, dtype=np.float32)
+            full_signal = np.concatenate([full_signal, end_silence]).astype(np.float32)
+
+            # Now, compute the labels for the entire full_signal
+            total_frames = math.ceil(len(full_signal) / frame_size)
+            labels = []
+
+            for idx, (digit, signal_len, silence_len) in enumerate(zip(digits, signal_lengths, silence_lengths)):
+                # Compute labels for signal
+                num_signal_frames = math.ceil(signal_len / frame_size)
+                label_value = digit if digit <= 11 else 12
+                signal_labels = np.full(num_signal_frames, label_value, dtype=np.int64)
+
+                # Compute labels for silence
+                num_silence_frames = math.ceil(silence_len / frame_size)
+                silence_labels = np.full(num_silence_frames, -1, dtype=np.int64)
+
+                # Append labels
+                labels.extend(signal_labels)
+                labels.extend(silence_labels)
+
+            # Compute labels for the end silence
+            end_silence_frames = math.ceil(len(end_silence) / frame_size)
+            end_silence_labels = np.full(end_silence_frames, -1, dtype=np.int64)
+            labels.extend(end_silence_labels)
+
+            full_labels = np.array(labels, dtype=np.int64)
+            # Ensure the labels match the number of frames
+            # assert len(full_labels) == total_frames, f"Mismatch between labels ({len(full_labels)}) and frames ({total_frames})"
+
+            # print(len(full_signal), len(full_labels))
+            self.data.append((
+                torch.from_numpy(full_signal).to(gv.device),
+                torch.from_numpy(full_labels).to(gv.device)
+            ))
 
     def __len__(self):
         return self.data_size
