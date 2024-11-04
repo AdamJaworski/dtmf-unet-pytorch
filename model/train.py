@@ -30,10 +30,10 @@ def train():
     loss_fn = nn.CrossEntropyLoss(ignore_index=-1)
 
     print("Creating dataset...")
-    dataset_ = DTMFDataset(1e6)
-    dataloader = DataLoader(dataset_, batch_size=64, shuffle=True, collate_fn=collate_fn)
+    dataset_ = DTMFDataset(3e3)
+    dataloader = DataLoader(dataset_, batch_size=16, shuffle=True, collate_fn=collate_fn)
 
-    num_epochs = 1000
+    num_epochs = 10000
 
     for epoch in range(num_epochs):
         print(f'Starting epoch {epoch}')

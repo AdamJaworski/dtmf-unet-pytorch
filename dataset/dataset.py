@@ -23,7 +23,7 @@ fs = 44100  # Hz
 
 class DTMFDataset(Dataset):
     def __init__(self, datasize):
-        self.data_size = datasize
+        self.data_size = int(datasize)
         self.data = []
 
         silence_break = np.zeros(int(fs * 40 / 1000), dtype=np.float32)

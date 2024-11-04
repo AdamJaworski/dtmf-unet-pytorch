@@ -24,7 +24,7 @@ class_index_to_digit = {
 def main():
     set_device()
     global_variables.paths = ModelPaths()
-    test()
+    test() if common_args.test else train()
 
 def set_device():
     """
