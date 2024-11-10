@@ -88,7 +88,7 @@ class DTMFDataset(Dataset):
 
                 # Compute labels for silence
                 num_silence_frames = math.ceil(silence_len / frame_size)
-                silence_labels = np.full(num_silence_frames, -1, dtype=np.int64)
+                silence_labels = np.full(num_silence_frames, 13, dtype=np.int64)
 
                 # Append labels
                 labels.extend(signal_labels)
@@ -96,7 +96,7 @@ class DTMFDataset(Dataset):
 
             # Compute labels for the end silence
             end_silence_frames = math.ceil(len(end_silence) / frame_size)
-            end_silence_labels = np.full(end_silence_frames, -1, dtype=np.int64)
+            end_silence_labels = np.full(end_silence_frames, 13, dtype=np.int64)
             labels.extend(end_silence_labels)
 
             full_labels = np.array(labels, dtype=np.int64)

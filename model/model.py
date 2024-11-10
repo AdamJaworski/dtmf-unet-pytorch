@@ -4,7 +4,8 @@ import torch
 import torch.nn as nn
 
 class Model(nn.Module):
-    def __init__(self, num_classes=12):
+    def __init__(self, num_classes=14):
+        # 0 - 11 (w sumie 12) digits + 12 szum, 13 cisza
         super(Model, self).__init__()
 
         self.conv_down_gr_1_1 = nn.Conv1d(1, 8, kernel_size=7, padding=2) # kernel 5,7 , padding

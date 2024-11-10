@@ -20,12 +20,15 @@ def collate_fn(batch):
     return data_padded, labels_padded
 
 def test():
-    model = Model(12)
+    model = Model()
     model.to(gv.device)
     data = DTMFDataset(1)
-    loss_fn = nn.CrossEntropyLoss(ignore_index=-1)
+    loss_fn = nn.CrossEntropyLoss(ignore_index=13)
     dataloader = DataLoader(data, batch_size=1, shuffle=False, collate_fn=collate_fn)
-    for state in os.listdir(gv.paths.model_path):
+
+    state_list = os.listdir(gv.paths.model_path)
+    state_list = ['latest.pth']
+    for state in state_list:
         model.load_state_dict(torch.load(gv.paths.model_path / state, weights_only=True))
 
         with torch.no_grad():

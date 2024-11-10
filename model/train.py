@@ -20,19 +20,18 @@ def collate_fn(batch):
     return data_padded, labels_padded
 
 def train():
-    num_classes = 12
-    model = Model(num_classes=num_classes)
+    model = Model()
     if pathlib.Path.exists(gv.paths.model_path / 'latest.pth'):
         print("Loading saved state")
         model.load_state_dict(torch.load(gv.paths.model_path / 'latest.pth', weights_only=True))
     model.to(gv.device)
     optimizer = Adam(params=model.parameters(), lr=0.001)
     scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=10000)
-    loss_fn = nn.CrossEntropyLoss(ignore_index=-1)
+    loss_fn = nn.CrossEntropyLoss(ignore_index=13)
 
     print("Creating dataset...")
     dataset_ = DTMFDataset(3e3)
-    dataloader = DataLoader(dataset_, batch_size=1, shuffle=True, collate_fn=collate_fn)
+    dataloader = DataLoader(dataset_, batch_size=32, shuffle=True, collate_fn=collate_fn)
 
     num_epochs = 10000
 
@@ -60,7 +59,6 @@ def train():
             loss.backward()
             optimizer.step()
 
-            print(loss.item())
             total_loss += loss.item()
             scheduler.step(loss.item())
 
