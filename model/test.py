@@ -36,7 +36,7 @@ def test():
                 data = data.unsqueeze(1)
                 outputs = model(data)
                 outputs = outputs.permute(0, 2, 1)
-                outputs = outputs.reshape(-1, 12)
+                outputs = outputs.reshape(-1, 14)
                 labels = labels.reshape(-1)
 
                 if outputs.size(0) != labels.size(0):
@@ -47,6 +47,10 @@ def test():
                 loss = loss_fn(outputs, labels)
                 predicted_classes = torch.argmax(outputs, dim=-1).tolist()
                 labels = labels.tolist()
+                for index, element in enumerate(labels):
+                    labels[index] = '_' if element == 13 else element
+                for index, element in enumerate(predicted_classes):
+                    predicted_classes[index] = '_' if element == 13 else element
                 print(f"{state}: (loss: {loss.item()}, gt: {remove_consecutive_duplicates(labels)}, output: {remove_consecutive_duplicates(predicted_classes)})")
 
 

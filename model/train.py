@@ -46,7 +46,7 @@ def train():
 
             outputs = model(data)
             outputs = outputs.permute(0, 2, 1)
-            outputs = outputs.reshape(-1, num_classes)
+            outputs = outputs.reshape(-1, 14)
             labels = labels.reshape(-1)
 
             if outputs.size(0) != labels.size(0):
