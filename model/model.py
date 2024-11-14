@@ -79,4 +79,4 @@ class Model(nn.Module):
         x = self.conv_up_gr_3_1(x)
         x = self.output_conv(x)
 
-        return torch.softmax(x, 2)
+        return x# torch.softmax(x, 2) # softmax może być problemem

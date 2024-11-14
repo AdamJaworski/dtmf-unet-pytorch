@@ -1,16 +1,12 @@
 import os
-import pathlib
-import sys
-import time
+from sklearn.metrics import f1_score
 import settings.global_variables as gv
 import torch.nn as nn
 import torch
-from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 from model.model import Model
 from dataset.dataset import DTMFDataset
-from torch import save
 
 def collate_fn(batch):
     data = [item[0] for item in batch]
@@ -22,6 +18,7 @@ def collate_fn(batch):
 def test():
     model = Model()
     model.to(gv.device)
+    model.eval()
     data = DTMFDataset(1)
     loss_fn = nn.CrossEntropyLoss(ignore_index=13)
     dataloader = DataLoader(data, batch_size=1, shuffle=False, collate_fn=collate_fn)
@@ -29,7 +26,7 @@ def test():
     state_list = os.listdir(gv.paths.model_path)
     state_list = ['latest.pth']
     for state in state_list:
-        model.load_state_dict(torch.load(gv.paths.model_path / state, weights_only=True))
+        model.load_state_dict(torch.load(gv.paths.model_path / state)) #, weights_only=True
 
         with torch.no_grad():
             for data, labels in dataloader:
@@ -45,13 +42,16 @@ def test():
                     labels = labels[:min_size]
 
                 loss = loss_fn(outputs, labels)
-                predicted_classes = torch.argmax(outputs, dim=-1).tolist()
-                labels = labels.tolist()
+                _, predicted_classes = torch.max(outputs, dim=1)
+                predicted_classes = predicted_classes.cpu().numpy()
+                labels = labels.cpu().numpy()
                 for index, element in enumerate(labels):
                     labels[index] = '_' if element == 13 else element
                 for index, element in enumerate(predicted_classes):
                     predicted_classes[index] = '_' if element == 13 else element
-                print(f"{state}: (loss: {loss.item()}, gt: {remove_consecutive_duplicates(labels)}, output: {remove_consecutive_duplicates(predicted_classes)})")
+                print(f"{state}: (loss: {loss.item()}, gt: {remove_consecutive_duplicates(labels.tolist())}, output: {remove_consecutive_duplicates(predicted_classes.tolist())})")
+                score = f1_score(labels.flatten(), predicted_classes.flatten(), average='macro')
+                print(f"F1 Score: {score:.4f}")
 
 
 def remove_similar(list_: list) -> list:

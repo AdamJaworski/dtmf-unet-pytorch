@@ -23,10 +23,10 @@ def train():
     model = Model()
     if pathlib.Path.exists(gv.paths.model_path / 'latest.pth'):
         print("Loading saved state")
-        model.load_state_dict(torch.load(gv.paths.model_path / 'latest.pth', weights_only=True))
+        model.load_state_dict(torch.load(gv.paths.model_path / 'latest.pth')) #, weights_only=True
     model.to(gv.device)
     optimizer = Adam(params=model.parameters(), lr=0.001)
-    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=10000)
+    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=10)
     loss_fn = nn.CrossEntropyLoss(ignore_index=13)
 
     print("Creating dataset...")
@@ -60,10 +60,10 @@ def train():
             optimizer.step()
 
             total_loss += loss.item()
-            scheduler.step(loss.item())
 
         average_loss = total_loss / len(dataloader)
         print(f'Epoch {epoch+1}/{num_epochs}, Loss: {average_loss:.4f}')
+        scheduler.step(average_loss)
         save_model(model)
 
 def save_model(model_instance):
