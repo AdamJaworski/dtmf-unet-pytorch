@@ -6,6 +6,8 @@ parser.add_argument('--cpu_threads', type=int, default=0, help="Number of cpu th
 parser.add_argument('--directml', action="store_true")
 
 parser.add_argument('--test', action="store_true", default=False)
+parser.add_argument('--test2', action="store_true", default=False)
+parser.add_argument('--latest', action="store_true", default=False)
 
 parser.add_argument('--debug', action="store_true")
 parser.add_argument('--load_settings', type=bool, default=True)

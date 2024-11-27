@@ -16,50 +16,46 @@ def collate_fn(batch):
     data = [item[0] for item in batch]
     labels = [item[1] for item in batch]
     data_padded = pad_sequence(data, batch_first=True)
-    labels_padded = pad_sequence(labels, batch_first=True, padding_value=-1).long()
+    labels_padded = pad_sequence(labels, batch_first=True, padding_value=13).long()
     return data_padded, labels_padded
 
 def train():
     model = Model()
     if pathlib.Path.exists(gv.paths.model_path / 'latest.pth'):
         print("Loading saved state")
-        model.load_state_dict(torch.load(gv.paths.model_path / 'latest.pth')) #, weights_only=True
+        model.load_state_dict(torch.load(gv.paths.model_path / 'latest.pth', weights_only=True)) #
     model.to(gv.device)
     optimizer = Adam(params=model.parameters(), lr=0.001)
     scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=10)
-    loss_fn = nn.CrossEntropyLoss(ignore_index=13)
+    loss_fn = nn.CrossEntropyLoss()
 
     print("Creating dataset...")
-    dataset_ = DTMFDataset(3e3)
-    dataloader = DataLoader(dataset_, batch_size=32, shuffle=True, collate_fn=collate_fn)
+    dataset_ = DTMFDataset(30e3)
+    dataloader = DataLoader(dataset_, batch_size=32, shuffle=True) #, collate_fn=collate_fn
 
     num_epochs = 10000
 
-    for epoch in range(num_epochs):
+    for epoch in range(1, num_epochs):
         print(f'Starting epoch {epoch}')
         total_loss = 0.0
+        if epoch % 21 == 0:
+            print("Creating dataset...")
+            dataset_ = DTMFDataset(30e3)
+            dataloader = DataLoader(dataset_, batch_size=32, shuffle=True)
         for data, labels in dataloader:
-            # data size [batch_size, len]
             data = data.unsqueeze(1)
-            # data size [batch_size, channels, len]
+            # print(data.size())
+            # sys.exit()
             optimizer.zero_grad()
 
             outputs = model(data)
-            outputs = outputs.permute(0, 2, 1)
-            outputs = outputs.reshape(-1, 14)
-            labels = labels.reshape(-1)
-
-            if outputs.size(0) != labels.size(0):
-                min_size = min(outputs.size(0), labels.size(0))
-                outputs = outputs[:min_size]
-                labels = labels[:min_size]
-
             loss = loss_fn(outputs, labels)
 
             loss.backward()
             optimizer.step()
 
             total_loss += loss.item()
+
 
         average_loss = total_loss / len(dataloader)
         print(f'Epoch {epoch+1}/{num_epochs}, Loss: {average_loss:.4f}')

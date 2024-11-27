@@ -21,6 +21,7 @@ digit_to_freq = {
     10: (941, 1209),  # '*' key
     11: (941, 1477),  # '#' key
     # 12 will represent noise
+    # 13 is silent
 }
 
 fs = 44100  # Hz
@@ -36,86 +37,70 @@ class DTMFDataset(Dataset):
     def __init__(self, datasize):
         self.data_size = int(datasize)
         self.data = []
-        frame_size = 275  # Samples per label
-
-        silence_break = np.zeros(int(fs * 40 / 1000), dtype=np.float32)
+        self.labels = []
 
         for _ in range(self.data_size):
-            duration_of_sound = rand.randint(3, 6)  # Number of digits
-            sound = []
-            segments = []  # Store (label, length) tuples
+            window_length = 200  # Total window length in milliseconds
+            digit = rand.randint(0, 14)  # Random digit between 0 and 13
+            length_of_sound = rand.randint(50, window_length + 1)  # Sound duration between 50ms and 200ms
+            length_of_silent_total = window_length - length_of_sound  # Total silence duration
+            length_of_silent_front = rand.randint(0, length_of_silent_total + 1)  # Silence at the front
 
-            for _ in range(duration_of_sound):
-                digit = rand.randint(0, 13)  # 0-11 are digits, 12 is noise
-                duration = rand.randint(100, 300)  # ms
-                snr = rand.randint(1, 15)
-                volume = rand.uniform(0.5, 1.0)
 
-                duration_samples = int(fs * duration / 1000)
-                t = np.arange(duration_samples) / fs
+            # Convert durations from milliseconds to sample counts
+            total_samples = int(fs * window_length / 1000)
+            sound_samples = int(fs * length_of_sound / 1000)
+            silent_front_samples = int(fs * length_of_silent_front / 1000)
+            silent_back_samples = total_samples - sound_samples - silent_front_samples
 
-                if digit == 12:
-                    # Generate noise
-                    sin1 = np.sin(2 * np.pi * rand.randint(1800, 15000) * t) * volume
-                    sin2 = np.sin(2 * np.pi * rand.randint(1800, 15000) * t) * volume
-                else:
-                    freqs = digit_to_freq[digit]
-                    sin1 = np.sin(2 * np.pi * freqs[0] * t) * volume
-                    sin2 = np.sin(2 * np.pi * freqs[1] * t) * volume
+            if digit < 12:
+                freq = digit_to_freq[digit]
 
-                signal = sin1 + sin2
-                signal = add_awgn_noise(signal, snr)
-                signal = np.clip(signal, -1.0, 1.0)
+                # Generate time array for the sound duration
+                t = np.arange(sound_samples) / fs
 
-                # Append signal and its label
-                sound.append(signal)
-                segments.append((digit, len(signal)))  # digit can be 0-12
+                # Generate the two sine waves for DTMF
+                sin1 = np.sin(2 * np.pi * freq[0] * t)
+                sin2 = np.sin(2 * np.pi * freq[1] * t)
 
-                # Append silence break and its label
-                sound.append(silence_break)
-                segments.append(('silence', len(silence_break)))
+                sound = sin1 + sin2
 
-            # Concatenate all sound segments
-            full_signal = np.concatenate(sound).astype(np.float32)
+                sound *= rand.randint(1, 11) / 10 # amplituda od 0.1 do 1
 
-            # Add 1 second of silence at the end
-            end_silence_duration = fs  # 1 second of silence
-            end_silence = np.zeros(end_silence_duration, dtype=np.float32)
-            full_signal = np.concatenate([full_signal, end_silence]).astype(np.float32)
+                for i in range(rand.randint(3, 35)):
+                    noise = rand.randint(1500, 15000)
+                    sound += np.sin(2 * np.pi * noise * t)
 
-            # Append end silence to segments
-            segments.append(('silence', len(end_silence)))
+                # Optionally add noise to the sound
+                snr_db = rand.uniform(0.1, 15)  # Random SNR between 20 and 30 dB
+                sound = add_awgn_noise(sound, snr_db)
 
-            # Now, compute the labels for the entire full_signal
-            total_frames = math.ceil(len(full_signal) / frame_size)
-            labels = []
+                # Concatenate silence and sound
+                silent_front = np.zeros(silent_front_samples, dtype=np.float32)
+                silent_back = np.zeros(silent_back_samples, dtype=np.float32)
+                signal = np.concatenate((silent_front, sound, silent_back)).astype(np.float32)
 
-            for label, segment_len in segments:
-                num_frames = math.ceil(segment_len / frame_size)
-                if label == 'silence':
-                    frame_labels = np.full(num_frames, 13, dtype=np.int64)
-                else:
-                    # Assign label for digits and noise
-                    label_value = label if label <= 11 else 12
-                    frame_labels = np.full(num_frames, label_value, dtype=np.int64)
-                labels.extend(frame_labels)
+            elif digit == 12:
+                # Generate noise
+                signal = np.random.normal(0, 1, total_samples).astype(np.float32)
+                t = np.arange(total_samples) / fs
+                for i in range(rand.randint(3, 35)):
+                    noise = rand.randint(1500, 15000)
+                    signal += np.sin(2 * np.pi * noise * t)
 
-            # Adjust labels to match total_frames
-            full_labels = np.array(labels, dtype=np.int64)
-            if len(full_labels) > total_frames:
-                full_labels = full_labels[:total_frames]
-            elif len(full_labels) < total_frames:
-                # Pad with silence labels
-                full_labels = np.pad(full_labels, (0, total_frames - len(full_labels)), 'constant', constant_values=13)
+            elif digit == 13:
+                # Generate silence
+                signal = np.zeros(total_samples, dtype=np.float32)
 
-            # Store the data
-            self.data.append((
-                torch.from_numpy(full_signal).to(device),
-                torch.from_numpy(full_labels).to(device)
-            ))
+            # Convert signal to torch tensor
+            signal_tensor = torch.from_numpy(signal).float().to(device)
+
+            # Append to data and labels
+            self.data.append(signal_tensor)
+            self.labels.append(digit)
 
     def __len__(self):
         return self.data_size
 
     def __getitem__(self, index):
-        return self.data[index]
+        return self.data[index], self.labels[index]

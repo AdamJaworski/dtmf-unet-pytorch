@@ -4,6 +4,7 @@ from settings.common_options import common_args
 from settings import global_variables
 from model.train import train
 from model.test import test
+from model.test import test2
 from model.model_paths import ModelPaths
 import torch
 
@@ -27,7 +28,10 @@ def main():
     set_device()
     global_variables.paths = ModelPaths()
     try:
-        test() if common_args.test else train()
+        if common_args.test2:
+            test2()
+            sys.exit()
+        test(common_args.latest) if common_args.test else train()
     except KeyboardInterrupt:
         print("Stopping..")
     except Exception as e:
