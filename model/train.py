@@ -30,18 +30,18 @@ def train():
     loss_fn = nn.CrossEntropyLoss()
 
     print("Creating dataset...")
-    dataset_ = DTMFDataset(30e3)
-    dataloader = DataLoader(dataset_, batch_size=32, shuffle=True) #, collate_fn=collate_fn
+    dataset_ = DTMFDataset(128)
+    dataloader = DataLoader(dataset_, batch_size=512, shuffle=True) #, collate_fn=collate_fn
 
     num_epochs = 10000
 
     for epoch in range(1, num_epochs):
         print(f'Starting epoch {epoch}')
         total_loss = 0.0
-        if epoch % 21 == 0:
+        if epoch % 11 == 0:
             print("Creating dataset...")
-            dataset_ = DTMFDataset(30e3)
-            dataloader = DataLoader(dataset_, batch_size=32, shuffle=True)
+            dataset_ = DTMFDataset(128)
+            dataloader = DataLoader(dataset_, batch_size=512, shuffle=True)
         for data, labels in dataloader:
             data = data.unsqueeze(1)
             # print(data.size())

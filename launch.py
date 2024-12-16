@@ -29,7 +29,7 @@ def main():
     global_variables.paths = ModelPaths()
     try:
         if common_args.test2:
-            test2()
+            test2(common_args.latest)
             sys.exit()
         test(common_args.latest) if common_args.test else train()
     except KeyboardInterrupt:

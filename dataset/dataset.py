@@ -1,6 +1,7 @@
 from typing import Optional
 import numpy as np
 import numpy.random as rand
+import random
 import torch
 from torch.utils.data import Dataset
 import sounddevice as sd
@@ -43,6 +44,8 @@ class DTMFDataset(Dataset):
         self.data = []
         self.labels = []
 
+        window_duration = 0.12 # in s
+
         for _ in range(self.data_size):
             digits = []
             # Create 30 digits, each with a random duration between 300ms and 500ms
@@ -53,7 +56,7 @@ class DTMFDataset(Dataset):
             # Calculate total duration (in ms)
             full_sound_duration = 0
             for digit in digits:
-                full_sound_duration += 150   # 150ms break before the digit tone
+                full_sound_duration += window_duration * 1e3   # 150ms break before the digit tone
                 full_sound_duration += digit[1]  # digit duration in ms
 
             # Create time array for the entire signal
@@ -61,12 +64,14 @@ class DTMFDataset(Dataset):
             full_long_sound = np.zeros_like(t)
 
             # Add background noise frequency (not one of the DTMF freqs)
-            background_noise_freq = rand.randint(100, 2000)
+            #for i in range(rand.randint(1,2)):
+
+            background_noise_freq = self.noise_bg = random.choice([rand.randint(100, 400), rand.randint(1700, 2500)])
             while background_noise_freq in forbidden_freq:
                 background_noise_freq = rand.randint(100, 2000)
 
             # Fill with background noise (sine wave + AWGN)
-            full_long_sound = np.sin(2 * np.pi * background_noise_freq * t)
+            full_long_sound += np.sin(2 * np.pi * background_noise_freq * t)
 
 
             # Ground truth labels: start as noise (12)
@@ -76,7 +81,7 @@ class DTMFDataset(Dataset):
             # Place tones
             for digit in digits:
                 # Add break
-                break_samples = int(0.15 * fs) # 150ms break
+                break_samples = int(window_duration * fs)
                 tone_samples = int(digit[1]/1000 * fs) # digit duration
 
                 # The current segment for break: [indicator, indicator+break_samples)
@@ -115,7 +120,8 @@ class DTMFDataset(Dataset):
             total_duration_s = len(full_long_sound) / fs
             num_windows = int(total_duration_s / 0.1)  # total_duration_s * 10
 
-            full_long_sound = add_awgn_noise(full_long_sound, rand.randint(5, 20) / 10)  # Add AWGN noise
+            self.snr = rand.randint(20, 100) / 10
+            full_long_sound = add_awgn_noise(full_long_sound, self.snr)  # Add AWGN noise
 
             self.long_sound = full_long_sound
             for window_idx in range(num_windows):
@@ -145,7 +151,7 @@ class DTMFDataset(Dataset):
         sd.wait()
 
 if __name__ == "__main__":
-    dataset = DTMFDataset(datasize=1)
+    dataset = DTMFDataset(datasize=5)
     print(dataset.data_size)
     print(dataset.labels)
     dataset.play_long_sound()

@@ -5,7 +5,7 @@ class Model(nn.Module):
     def __init__(self, num_classes=14):
         # 0 - 11 (w sumie 12) digits + 12 szum, 13 cisza
         super(Model, self).__init__()
-
+        # [bath_size, in_channels, in_data] -> [128, 1, 4406]
         self.conv_down_gr_1_1 = nn.Conv1d(1, 2, kernel_size=7, padding=2) # kernel 5,7 , padding
         self.conv_down_gr_1_2 = nn.Conv1d(2, 2, kernel_size=7, padding=2) # skalowanie w górę np. do 256
 
@@ -21,10 +21,10 @@ class Model(nn.Module):
         self.conv_down_gr_5_1 = nn.Conv1d(16, 32, kernel_size=7, padding=2)
         self.conv_down_gr_5_2 = nn.Conv1d(32, 32, kernel_size=7, padding=2)
 
-        self.conv_down_gr_6_1 = nn.Conv1d(32, 64, kernel_size=7, padding=2)
-        self.conv_down_gr_6_2 = nn.Conv1d(64, 64, kernel_size=7, padding=2)
+        # self.conv_down_gr_6_1 = nn.Conv1d(32, 64, kernel_size=5, padding=1)
+        # self.conv_down_gr_6_2 = nn.Conv1d(64, 64, kernel_size=5, padding=1)
 
-        self.bottleneck1 = nn.Linear(192, 64)
+        self.bottleneck1 = nn.Linear(352, 64)
         self.bottleneck2 = nn.Linear(64, 32)
         self.bottleneck3 = nn.Linear(32, 14)
         # dojść do 64 kanałów
@@ -60,10 +60,10 @@ class Model(nn.Module):
 
         x = self.relu(self.conv_down_gr_5_1(x))
         x = self.relu(self.conv_down_gr_5_2(x))
-        x = self.pool(x)
+        # x = self.pool(x)
 
-        x = self.relu(self.conv_down_gr_6_1(x))
-        x = self.relu(self.conv_down_gr_6_2(x))
+        # x = self.relu(self.conv_down_gr_6_1(x))
+        # x = self.relu(self.conv_down_gr_6_2(x))
 
         # Flatten while preserving the batch dimension
         x = x.view(x.size(0), -1)
@@ -73,3 +73,8 @@ class Model(nn.Module):
         x = self.bottleneck3(x)
 
         return x# torch.softmax(x, 2) # softmax może być problemem
+
+
+    # def pool(self, x):
+    #     print(x.size())
+    #     return self.pool_(x)

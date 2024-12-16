@@ -1,6 +1,6 @@
 import os
 import sys
-
+import matplotlib.pyplot as plt
 from sklearn.metrics import f1_score
 import settings.global_variables as gv
 import torch.nn as nn
@@ -33,10 +33,13 @@ def test(latest: bool):
     model = Model()
     model.to(gv.device)
     model.eval()
-    input_size = 1e3
-    data = DTMFDataset(input_size)
+
+    dataset = DTMFDataset(test=True)
     loss_fn = nn.CrossEntropyLoss()
-    dataloader = DataLoader(data, batch_size=1, shuffle=False)
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
+
+    print(f'\nSNR: {dataset.snr}')
+    print(f'NOISE FREQUENCY: {dataset.noise_bg}\n')
 
     state_list = ['latest.pth'] if latest else os.listdir(gv.paths.model_path)
 
@@ -60,8 +63,8 @@ def test(latest: bool):
                 predicted_classes = predicted_classes.cpu().numpy()
                 labels = labels.cpu().numpy()
 
-                y_pred.extend(predicted_classes)
-                y_true.extend(labels)
+                y_pred.extend(predicted_classes.tolist())
+                y_true.extend(labels.tolist())
 
                 total_loss += loss.item()
 
@@ -69,6 +72,7 @@ def test(latest: bool):
         # Convert lists to tensors for calculation
         y_true_tensor = torch.tensor(y_true)
         y_pred_tensor = torch.tensor(y_pred)
+
 
         # Calculating precision, recall, and F1 score using PyTorch
         TP = 0
@@ -89,19 +93,22 @@ def test(latest: bool):
         print(f'Precision: {precision}')
         print(f'Recall: {recall}')
         print(f'F1 Score: {f1}')
-        print(f'Loss: {total_loss/input_size}\n')
+        print(f'Loss: {total_loss/dataset.data_size}\n')
+
+        plot_labels_and_predictions(y_true, y_pred)
 
     print(f'Highest F1: {highest_f1}')
     print(f'State: {state_hi}')
 
-def test2():
+def test2(latest: bool):
     import librosa
 
     model = Model()
     model.eval()
-    window_length = 200  # in milliseconds
+    window_length = 100  # in milliseconds
     total_samples = int(44100 * window_length / 1000)
-    model.load_state_dict(torch.load(gv.paths.model_path / 'best.pth'))
+    state = '1734041328.780013  .pth' #best.pth' if not latest else 'latest.pth'
+    model.load_state_dict(torch.load(gv.paths.model_path / state))
 
     # Load the audio data
     data, sr = librosa.load(gv.paths.chal_path, sr=44100, mono=False)
@@ -131,14 +138,73 @@ def test2():
             output_total.append(predicted_classes.cpu().numpy().tolist()[0])
 
     print("Raw Output Classes:", output_total)
-    output_total = remove_similar(output_total)
-    print("Filtered Output Classes:", output_total)
 
+    output_total = advance_post_processing_logic_executor(output_total)
+    print(f"\nFiltered Output Classes:", output_total)
+    #print("Filtered Output Classes:", remove_similar(output_total))
+
+
+    output_total = remove_similar(output_total)
     mapped_output = []
     for digit in output_total:
         mapped_output.append(map_keys[digit])
 
     print(''.join(mapped_output))
+
+
+def plot_labels_and_predictions(ground_truth, predictions):
+    """
+    Plot ground truth and predicted labels over time (windows).
+
+    Parameters:
+    ground_truth (list or np.ndarray): Array of ground truth labels of length N.
+    predictions (list or np.ndarray): Array of predicted labels of length N.
+    """
+
+    # Ensure inputs are arrays
+    ground_truth = np.array(ground_truth)
+    predictions = np.array(predictions)
+
+    x = np.arange(len(ground_truth))
+
+    plt.figure(figsize=(15, 5))
+
+    # Plot ground truth using a step plot
+    # To make a step plot that occupies a range on x for each window, we can shift x by 0.5.
+    # Adding np.append(...) to repeat the last element ensures a proper step end.
+    gt_y = np.append(ground_truth, ground_truth[-1])
+    pred_y = np.append(predictions, predictions[-1])
+    x_extended = np.append(x, x[-1] + 1)  # extend x by one more segment
+
+    plt.step(x_extended, gt_y, where='post', label='Ground Truth', linewidth=2)
+    plt.step(x_extended, pred_y, where='post', label='Prediction', linewidth=2, linestyle='--', color='red')
+
+    # Set Y ticks to show all keys from 0 to 12
+    plt.yticks(range(13))
+    plt.ylim(-0.5, 12.5)
+
+    plt.xlabel('Window Index')
+    plt.ylabel('Label')
+    plt.title('Model Predictions vs Ground Truth over Windows')
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+
+
+def advance_post_processing_logic_executor(sequence: list) -> list:
+    """APPLE"""
+    output = []
+
+    previous_element         = None
+    previously_added_element = None
+    for index, element in enumerate(sequence):
+        if element == previous_element and element != previously_added_element:
+            output.append(element)
+            previously_added_element = element
+
+        previous_element = element
+
+    return output
 
 def remove_similar(list_: list) -> list:
     index = 1
