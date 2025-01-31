@@ -38,9 +38,6 @@ def test(latest: bool):
     loss_fn = nn.CrossEntropyLoss()
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
 
-    print(f'\nSNR: {dataset.snr}')
-    print(f'NOISE FREQUENCY: {dataset.noise_bg}\n')
-
     state_list = ['latest.pth'] if latest else os.listdir(gv.paths.model_path)
 
     highest_f1 = 0
@@ -107,8 +104,8 @@ def test2(latest: bool):
     model.eval()
     window_length = 100  # in milliseconds
     total_samples = int(44100 * window_length / 1000)
-    state = '1734041328.780013  .pth' #best.pth' if not latest else 'latest.pth'
-    model.load_state_dict(torch.load(gv.paths.model_path / state))
+    state = 'best.pth' if not latest else 'latest.pth'
+    model.load_state_dict(torch.load(gv.paths.model_path / state, weights_only=True))
 
     # Load the audio data
     data, sr = librosa.load(gv.paths.chal_path, sr=44100, mono=False)
